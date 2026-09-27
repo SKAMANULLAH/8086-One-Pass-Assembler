@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8086 One-Pass Assembler & Virtual CPU Simulator</title>
+    <meta name="description" content="An academic 8086 one-pass assembler with forward reference backpatching, CPU simulation, calculator engine, and data structure inspection.">
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Top Navigation / Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div class="brand-icon">⚡</div>
+                <div>
+                    <h1 class="brand-title">8086 One-Pass Assembler & CPU Simulator</h1>
+                    <p class="brand-subtitle">Virtual Microprocessor &bull; Backpatching Fixup Engine &bull; System Software Tables</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <span class="status-badge" id="server-status"><span class="status-dot"></span> System Online</span>
+                <span class="version-badge">8086 ARCH</span>
+            </div>
+        </header>
+
+        <!-- Main Navigation Tabs -->
+        <nav class="main-tabs" role="tablist">
+            <button class="tab-btn active" id="tab-btn-calculator" data-tab="tab-calculator" role="tab">
+                🧮 Interactive Calculator
+            </button>
+            <button class="tab-btn" id="tab-btn-studio" data-tab="tab-studio" role="tab">
+                💻 8086 Assembly Studio
+            </button>
+            <button class="tab-btn" id="tab-btn-tables" data-tab="tab-tables" role="tab">
+                🗂️ System Tables (OPTAB / SYMTAB)
+            </button>
+            <button class="tab-btn" id="tab-btn-viva" data-tab="tab-viva" role="tab">
+                🎓 Viva & Architecture Guide
+            </button>
+        </nav>
+
+        <!-- ======================================================== -->
+        <!-- TAB 1: INTERACTIVE CALCULATOR                            -->
+        <!-- ======================================================== -->
+        <main class="tab-content active" id="tab-calculator" role="tabpanel">
+            <div class="calculator-layout">
+                <!-- Left: Calculator Controls -->
+                <section class="card glass-card calc-controls-card">
+                    <div class="card-header">
+                        <h2>Math Expression to 8086 Instructions</h2>
+                        <span class="info-pill">One-Pass Assembled</span>
+                    </div>
+
+                    <p class="section-desc">
+                        Type an expression or click a preset. The engine automatically translates your math into 8086 Assembly, compiles it with <strong>One-Pass Backpatching</strong>, and executes it on the <strong>Virtual CPU</strong>.
+                    </p>
+
+                    <!-- Expression Form -->
+                    <form id="calc-form" class="calc-form" onsubmit="return false;">
+                        <div class="input-row">
+                            <input type="text" id="calc-expression-input" class="calc-input" placeholder="e.g. 45 + 17, 95 / 6, 95 % 6, 12 * 8" value="45 + 17" autocomplete="off" spellcheck="false" required>
+                            <button type="submit" id="btn-calc-execute" class="btn btn-primary btn-glow">
+                                <span class="btn-text">Execute on 8086</span>
+                                <span class="spinner" hidden></span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Quick Preset Buttons -->
+                    <div class="presets-container">
+                        <span class="preset-label">Quick Presets:</span>
+                        <div class="preset-chips">
+                            <button type="button" class="chip" data-expr="45 + 17">45 + 17 (ADD)</button>
+                            <button type="button" class="chip" data-expr="100 - 42">100 - 42 (SUB)</button>
+                            <button type="button" class="chip" data-expr="12 * 8">12 * 8 (MUL)</button>
+                            <button type="button" class="chip" data-expr="95 / 6">95 / 6 (DIV Quotient)</button>
+                            <button type="button" class="chip" data-expr="95 % 6">95 % 6 (DIV Modulo)</button>
+                            <button type="button" class="chip" data-expr="255 * 256">255 * 256 (16-bit)</button>
+                        </div>
+                    </div>
+
+                    <!-- Auto-Generated 8086 Assembly Preview -->
+                    <div class="asm-preview-card">
+                        <div class="asm-preview-header">
+                            <span class="preview-title">Auto-Generated 8086 Source Code</span>
+                            <span class="badge-subtle">Generated Assembly</span>
+                        </div>
+                        <pre class="code-block" id="calc-asm-preview">ORG 0100H
+START:
+    MOV AX, 45
+    MOV BX, 17
+    ADD AX, BX
+    HLT
+END</pre>
+                    </div>
+                </section>
+
+                <!-- Right: Calculator Result & Register State -->
+                <section class="card glass-card calc-result-card">
+                    <div class="card-header">
+                        <h2>8086 Processor Result</h2>
+                        <span class="badge-success" id="calc-status-badge">Executed</span>
+                    </div>
+
+                    <div class="result-showcase">
+                        <div class="result-number-container">
+                            <span class="result-label">Computed Value</span>
+                            <div class="result-number" id="calc-result-val">62</div>
+                            <div class="result-register" id="calc-result-reg">Stored in AX Register</div>
+                        </div>
+                        <div class="result-meta-grid">
+                            <div class="meta-item">
+                                <span class="meta-title">Operation</span>
+                                <span class="meta-value" id="calc-meta-op">Addition (+)</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-title">Expected Match</span>
+                                <span class="meta-value text-emerald" id="calc-meta-match">Exact (100%)</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-title">Hex Representation</span>
+                                <span class="meta-value font-mono" id="calc-meta-hex">0x003E</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-title">CPU Steps</span>
+                                <span class="meta-value" id="calc-meta-steps">4 instructions</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mini Register Grid -->
+                    <h3 class="subsection-title">CPU Registers at Halt</h3>
+                    <div class="mini-registers-grid" id="calc-registers-grid">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+
+                    <!-- Mini Flags Row -->
+                    <h3 class="subsection-title">Processor Status Flags</h3>
+                    <div class="flags-row" id="calc-flags-row">
+                        <div class="flag-chip" id="calc-flag-zf"><span class="flag-name">ZF</span> <span class="flag-desc">Zero</span></div>
+                        <div class="flag-chip" id="calc-flag-sf"><span class="flag-name">SF</span> <span class="flag-desc">Sign</span></div>
+                        <div class="flag-chip" id="calc-flag-cf"><span class="flag-name">CF</span> <span class="flag-desc">Carry</span></div>
+                        <div class="flag-chip" id="calc-flag-of"><span class="flag-name">OF</span> <span class="flag-desc">Overflow</span></div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- ======================================================== -->
+        <!-- TAB 2: 8086 ASSEMBLY STUDIO                              -->
+        <!-- ======================================================== -->
+        <main class="tab-content" id="tab-studio" role="tabpanel">
+            <div class="studio-layout">
+                <!-- Left: Code Editor -->
+                <div class="studio-editor-column">
+                    <section class="card glass-card editor-card">
+                        <div class="card-header editor-header">
+                            <div class="editor-header-left">
+                                <h2>8086 Assembly Source</h2>
+                                <span class="info-pill">One-Pass Input</span>
+                            </div>
+                            <div class="editor-header-actions">
+                                <button type="button" class="btn btn-secondary btn-sm" id="btn-load-calculator-asm">
+                                    📄 Load Calculator.asm
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="btn-load-backpatch-demo">
+                                    🔄 Load Backpatch Demo
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-editor">
+                                    🗑️ Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="editor-wrapper">
+                            <textarea id="asm-editor" class="asm-editor" spellcheck="false" placeholder="Write or paste your 8086 assembly program here..."></textarea>
+                        </div>
+
+                        <div class="editor-footer">
+                            <span class="editor-info">Supports: ORG, START, END, MOV, ADD, SUB, MUL, DIV, CMP, JMP, JE, JNE, HLT, DB, DW</span>
+                            <button type="button" id="btn-assemble-run" class="btn btn-primary btn-glow">
+                                <span class="btn-text">Assemble & Execute (One-Pass)</span>
+                                <span class="spinner" hidden></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Right: CPU Dashboards & Register File -->
+                <div class="studio-inspect-column">
+                    <section class="card glass-card">
+                        <div class="card-header">
+                            <h2>8086 CPU Register File</h2>
+                            <span class="badge-subtle" id="cpu-status-badge">Ready</span>
+                        </div>
+
+                        <!-- 16-bit Registers Grid -->
+                        <div class="registers-card-grid" id="studio-registers-grid">
+                            <!-- Populated dynamically -->
+                        </div>
+
+                        <!-- Flags Row -->
+                        <div class="card-divider"></div>
+                        <div class="card-subhead">
+                            <h3>ALU Status Flags</h3>
+                            <span class="text-muted text-xs">Updated automatically after arithmetic</span>
+                        </div>
+                        <div class="flags-row" id="studio-flags-row">
+                            <div class="flag-chip" id="studio-flag-zf"><span class="flag-name">ZF</span> <span class="flag-desc">Zero Flag</span></div>
+                            <div class="flag-chip" id="studio-flag-sf"><span class="flag-name">SF</span> <span class="flag-desc">Sign Flag</span></div>
+                            <div class="flag-chip" id="studio-flag-cf"><span class="flag-name">CF</span> <span class="flag-desc">Carry Flag</span></div>
+                            <div class="flag-chip" id="studio-flag-of"><span class="flag-name">OF</span> <span class="flag-desc">Overflow Flag</span></div>
+                        </div>
+                    </section>
+
+                    <!-- Backpatch & Fixup History Banner -->
+                    <section class="card glass-card">
+                        <div class="card-header">
+                            <h2>Fixup & Backpatch Events</h2>
+                            <span class="info-pill" id="fixup-count-pill">0 Events</span>
+                        </div>
+                        <div class="backpatch-list" id="studio-backpatch-list">
+                            <p class="text-muted text-sm empty-state">Run assembly containing forward jumps (e.g. JMP TARGET before TARGET is defined) to see backpatching in action.</p>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Bottom: System Software Data Structures Inspector -->
+            <section class="card glass-card inspector-card">
+                <div class="inspector-tabs-nav" role="tablist">
+                    <button class="subtab-btn active" data-subtab="subtab-listing">📜 Object Code Listing</button>
+                    <button class="subtab-btn" data-subtab="subtab-symtab">📑 Symbol Table (SYMTAB)</button>
+                    <button class="subtab-btn" data-subtab="subtab-littab">🔢 Literal Table (LITTAB)</button>
+                    <button class="subtab-btn" data-subtab="subtab-trace">⏱️ CPU Execution Trace</button>
+                    <button class="subtab-btn" data-subtab="subtab-log">📝 Assembly Process Log</button>
+                </div>
+
+                <div class="subtab-contents">
+                    <!-- Subtab 1: Listing -->
+                    <div class="subtab-content active" id="subtab-listing">
+                        <div class="table-responsive">
+                            <table class="data-table" id="table-listing">
+                                <thead>
+                                    <tr>
+                                        <th>Line</th>
+                                        <th>Address</th>
+                                        <th>Machine Code Bytes</th>
+                                        <th>Assembly Source</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="4" class="text-muted text-center">No program assembled yet.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Subtab 2: SYMTAB -->
+                    <div class="subtab-content" id="subtab-symtab">
+                        <div class="table-responsive">
+                            <table class="data-table" id="table-symtab">
+                                <thead>
+                                    <tr>
+                                        <th>Symbol Name</th>
+                                        <th>Resolved Address</th>
+                                        <th>Defined?</th>
+                                        <th>Reference Addresses</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="4" class="text-muted text-center">No symbols defined.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Subtab 3: LITTAB -->
+                    <div class="subtab-content" id="subtab-littab">
+                        <div class="table-responsive">
+                            <table class="data-table" id="table-littab">
+                                <thead>
+                                    <tr>
+                                        <th>Literal</th>
+                                        <th>Value (Dec)</th>
+                                        <th>Memory Address</th>
+                                        <th>Allocated?</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="4" class="text-muted text-center">No literals used.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Subtab 4: CPU Trace -->
+                    <div class="subtab-content" id="subtab-trace">
+                        <pre class="trace-block" id="studio-trace-block">Waiting for CPU execution...</pre>
+                    </div>
+
+                    <!-- Subtab 5: Assembly Log -->
+                    <div class="subtab-content" id="subtab-log">
+                        <div class="log-container" id="studio-log-container">
+                            <p class="text-muted text-sm">Assembly log will appear here after compilation.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- ======================================================== -->
+        <!-- TAB 3: SYSTEM TABLES (OPTAB / SYMTAB REFERENCE)          -->
+        <!-- ======================================================== -->
+        <main class="tab-content" id="tab-tables" role="tabpanel">
+            <div class="card glass-card">
+                <div class="card-header">
+                    <div>
+                        <h2>Opcode Table (OPTAB / MOT)</h2>
+                        <p class="section-desc">Machine Opcode Table stored as a Hash Map for O(1) lookup during One-Pass assembly.</p>
+                    </div>
+                    <div class="search-box">
+                        <input type="text" id="optab-search" placeholder="Search mnemonic (e.g. ADD, MUL)...">
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table" id="table-optab">
+                        <thead>
+                            <tr>
+                                <th>Mnemonic</th>
+                                <th>Hex Opcode</th>
+                                <th>Size</th>
+                                <th>Operand Format</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" class="text-center">Loading OPTAB...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- ======================================================== -->
+        <!-- TAB 4: VIVA & ARCHITECTURE GUIDE                         -->
+        <!-- ======================================================== -->
+        <main class="tab-content" id="tab-viva" role="tabpanel">
+            <div class="viva-grid">
+                <article class="card glass-card viva-card">
+                    <div class="viva-header">
+                        <span class="viva-badge">Q1</span>
+                        <h3>What is the difference between One-Pass and Two-Pass Assemblers?</h3>
+                    </div>
+                    <p class="viva-answer">
+                        A <strong>Two-Pass Assembler</strong> scans the source code twice: Pass 1 calculates addresses and builds the Symbol Table (<code>SYMTAB</code>), while Pass 2 generates machine code. A <strong>One-Pass Assembler</strong> scans the code only once, emitting machine code immediately as each statement is encountered.
+                    </p>
+                </article>
+
+                <article class="card glass-card viva-card">
+                    <div class="viva-header">
+                        <span class="viva-badge">Q2</span>
+                        <h3>How does a One-Pass Assembler solve the Forward Reference Problem?</h3>
+                    </div>
+                    <p class="viva-answer">
+                        It uses <strong>Backpatching</strong>! When an instruction references an undefined forward label, the assembler writes dummy placeholder bytes (e.g., <code>00 00</code>) into memory and logs the location in a <strong>Fixup Table</strong>. The exact moment the label is encountered later in the source code, the assembler revisits the placeholder address and overwrites it with the resolved address.
+                    </p>
+                </article>
+
+                <article class="card glass-card viva-card">
+                    <div class="viva-header">
+                        <span class="viva-badge">Q3</span>
+                        <h3>How are Division (/) and Modulo (%) handled by the 8086 DIV instruction?</h3>
+                    </div>
+                    <p class="viva-answer">
+                        The 8086 <code>DIV</code> instruction divides the 32-bit dividend in <code>DX:AX</code> by a 16-bit register divisor. The hardware processor computes both simultaneously:
+                        <br>&bull; The <strong>Quotient (/)</strong> is stored in <strong><code>AX</code></strong>.
+                        <br>&bull; The <strong>Remainder (%)</strong> is stored in <strong><code>DX</code></strong>.
+                    </p>
+                </article>
+
+                <article class="card glass-card viva-card">
+                    <div class="viva-header">
+                        <span class="viva-badge">Q4</span>
+                        <h3>What data structures are best suited for SYMTAB and OPTAB?</h3>
+                    </div>
+                    <p class="viva-answer">
+                        A <strong>Hash Map (Hash Table / Dictionary)</strong> is ideal because it provides average <code>O(1)</code> constant time complexity for insertions and lookups. This enables instant mnemonic lookup and label resolution during single-pass code generation.
+                    </p>
+                </article>
+
+                <article class="card glass-card viva-card">
+                    <div class="viva-header">
+                        <span class="viva-badge">Q5</span>
+                        <h3>What is the purpose of LITTAB (Literal Table)?</h3>
+                    </div>
+                    <p class="viva-answer">
+                        <code>LITTAB</code> tracks literals (constant values prefixed with <code>=</code>, e.g. <code>=10</code>). Unlike immediate values embedded directly in instruction bytes, literals are allocated their own distinct memory addresses in a literal pool when directives like <code>LTORG</code> or <code>END</code> are processed.
+                    </p>
+                </article>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>8086 One-Pass Assembler & Virtual CPU Engine &bull; AWS EC2 Nginx Production Ready</p>
+            <p class="text-muted text-xs">Developed with Python, Flask, Gunicorn & Nginx</p>
+        </footer>
+    </div>
+
+    <!-- Application Script -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
