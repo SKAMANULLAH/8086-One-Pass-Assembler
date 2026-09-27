@@ -937,6 +937,11 @@ body {
     display: inline-block;
 }
 
+.spinner[hidden],
+[hidden] {
+    display: none !important;
+}
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
